@@ -1,0 +1,17 @@
+# Pickle files
+*.pkl
+
+# Images
+*.png
+
+*.json
+
+# CSV files
+*.csv
+
+__pycache__/
+
+# Data folders
+kronos/train/data
+kronos/train/outputs
+kronos/train/wandb
