@@ -2,13 +2,19 @@ from pathlib import Path
 import pandas as pd
 import shutil
 
-BASE_DATA_DIR = Path(__file__).resolve().parents[3] / "DATA_STORAGE" / "csv_data_catalog"
+BASE_DATA_DIR = Path(__file__).resolve().parent / "dataset_storage"
 INPUT_ROOT = BASE_DATA_DIR / "csv_data_all"
-OUTPUT_ROOT = BASE_DATA_DIR / "csv_data_all_processed"
-FNG_DIR_NAME = "FNG-INDEX.BINANCE"
-FNG_FILE = INPUT_ROOT / FNG_DIR_NAME / "FNG.csv"
-DOMINANCE_DIR_NAME = "DOMINANCE.BINANCE"
-DOMINANCE_FILE = INPUT_ROOT / DOMINANCE_DIR_NAME / "DOMINANCE.csv"
+OUTPUT_ROOT = BASE_DATA_DIR / "step_1"
+
+# Major coins for close price features
+MAJOR_COINS = ["BTC", "ETH", "DOGE", "SOL"]
+MAJOR_COIN_PATHS = {
+    coin: BASE_DATA_DIR / coin / f"{coin}USDT-LINEAR" / "OHLCV.csv"
+    for coin in MAJOR_COINS
+}
+
+# FNG Index
+FNG_FILE = BASE_DATA_DIR / "FNG-INDEX.BYBIT" / "FNG.csv"
 
 
 def _read_csv_safe(path: Path) -> pd.DataFrame | None:
@@ -75,53 +81,50 @@ def _merge_asof(base: pd.DataFrame,
 
 
 def load_fng():
+    """Load Fear & Greed Index data"""
     if not FNG_FILE.exists():
         return None
     fng = pd.read_csv(FNG_FILE)
     if "timestamp_nano" not in fng.columns:
-        # Reconstruct from ISO if needed
         if "timestamp_iso" in fng.columns:
             fng["timestamp_nano"] = pd.to_datetime(fng["timestamp_iso"], utc=True, errors="coerce").astype("int64")
         else:
             raise ValueError("FNG file missing timestamp_nano and timestamp_iso.")
     fng = _prepare_time(fng, "timestamp_nano")
-    # Normalisieren
+    # Normalize
     if "fear_greed" in fng.columns:
         fng["fng"] = pd.to_numeric(fng["fear_greed"], errors="coerce")
     elif "fng" not in fng.columns:
         raise ValueError("FNG file missing fear_greed/fng column.")
-    if "classification" in fng.columns:
-        fng["fng_classification"] = fng["classification"]
-    elif "fng_classification" not in fng.columns:
-        fng["fng_classification"] = ""
-    keep = ["timestamp_nano", "fng", "fng_classification"]
+    keep = ["timestamp_nano", "fng"]
     return fng[keep].sort_values("timestamp_nano")
 
 
-def load_dominance():
-    if not DOMINANCE_FILE.exists():
+def load_major_coin_close(coin: str) -> pd.DataFrame | None:
+    """Load close price from major coin (BTC, ETH, DOGE, SOL)"""
+    path = MAJOR_COIN_PATHS.get(coin)
+    if not path or not path.exists():
+        print(f"[WARN] {coin} OHLCV not found at {path}")
         return None
-    dom = pd.read_csv(DOMINANCE_FILE)
-    if "timestamp_nano" not in dom.columns:
-        if "timestamp_iso" in dom.columns:
-            dom["timestamp_nano"] = pd.to_datetime(dom["timestamp_iso"], utc=True, errors="coerce").astype("int64")
-        else:
-            raise ValueError("Dominance file missing timestamp_nano and timestamp_iso.")
-    dom = _prepare_time(dom, "timestamp_nano")
-    # Unnötige Spalten entfernen
-    dom = dom.drop(columns=[c for c in ["timestamp_iso", "instrument_id"] if c in dom.columns], errors="ignore")
-    # Sicherstellen, dass mindestens eine Metrik vorhanden ist
-    metric_cols = [c for c in dom.columns if c != "timestamp_nano"]
-    if not metric_cols:
+    try:
+        df = pd.read_csv(path)
+        if "timestamp_nano" not in df.columns or "close" not in df.columns:
+            print(f"[WARN] {coin} missing required columns")
+            return None
+        df = _prepare_time(df, "timestamp_nano")
+        # Keep only timestamp and close, rename close to {coin}_close
+        result = df[["timestamp_nano", "close"]].copy()
+        result = result.rename(columns={"close": f"{coin.lower()}_close"})
+        return result.sort_values("timestamp_nano")
+    except Exception as e:
+        print(f"[ERROR] Loading {coin}: {e}")
         return None
-    return dom[["timestamp_nano"] + metric_cols].sort_values("timestamp_nano")
 
 
-def process_symbol_dir(sym_dir: Path, fng_df: pd.DataFrame, dom_df: pd.DataFrame):
+def process_symbol_dir(sym_dir: Path, fng_df: pd.DataFrame, major_coins_dict: dict):
     symbol = sym_dir.name
     ohlcv_path = sym_dir / "OHLCV.csv"
     metrics_path = sym_dir / "METRICS.csv"
-    lunar_path = sym_dir / "LUNAR.csv"
 
     ohlcv = _read_csv_safe(ohlcv_path)
     if ohlcv is None:
@@ -150,31 +153,23 @@ def process_symbol_dir(sym_dir: Path, fng_df: pd.DataFrame, dom_df: pd.DataFrame
         metrics = metrics.drop(columns=[c for c in drop_cols if c in metrics.columns], errors="ignore")
         merged = _merge_asof(merged, metrics, right_key="timestamp_nano", prefix="metrics")
 
-    # LUNAR
-    lunar = _read_csv_safe(lunar_path)
-    if lunar is not None and not lunar.empty:
-        lunar = _prepare_time(lunar, "timestamp_nano")
-        drop_cols = {"symbol", "timestamp_iso"}
-        lunar = lunar.drop(columns=[c for c in drop_cols if c in lunar.columns], errors="ignore")
-        merged = _merge_asof(merged, lunar, right_key="timestamp_nano", prefix="lunar")
+    # Major coins close prices (BTC, ETH, DOGE, SOL)
+    for coin_name, coin_df in major_coins_dict.items():
+        if coin_df is not None and not coin_df.empty:
+            merged = _merge_asof(merged, coin_df, right_key="timestamp_nano", prefix=coin_name.lower())
 
     # FNG (global)
     if fng_df is not None and not fng_df.empty:
         merged = _merge_asof(merged, fng_df, right_key="timestamp_nano", prefix="fng")
 
-    # dominance (global)
-    if dom_df is not None and not dom_df.empty:
-        merged = _merge_asof(merged, dom_df, right_key="timestamp_nano", prefix="dom")
-
     # Spaltenordnung bauen
     base_cols = ["timestamp_nano", "timestamp_iso", "instrument_id", "open", "high", "low", "close", "volume"]
     metrics_cols = sorted([c for c in merged.columns if c.startswith("metrics_")])
-    lunar_cols = sorted([c for c in merged.columns if c.startswith("lunar_")])
+    major_coin_cols = sorted([c for c in merged.columns if any(c.startswith(f"{coin.lower()}_") for coin in MAJOR_COINS)])
     fng_cols = sorted([c for c in merged.columns if c.startswith("fng_")])
-    dom_cols = sorted([c for c in merged.columns if c.startswith("dom_")])
-    others = [c for c in merged.columns if c not in base_cols + metrics_cols + lunar_cols + fng_cols + dom_cols]
+    others = [c for c in merged.columns if c not in base_cols + metrics_cols + major_coin_cols + fng_cols]
     # Ensure base first, then features
-    final_cols = base_cols + metrics_cols + lunar_cols + fng_cols + dom_cols + [c for c in others if c not in base_cols]
+    final_cols = base_cols + metrics_cols + major_coin_cols + fng_cols + [c for c in others if c not in base_cols]
 
     merged = merged[final_cols]
 
@@ -184,7 +179,6 @@ def process_symbol_dir(sym_dir: Path, fng_df: pd.DataFrame, dom_df: pd.DataFrame
     # Output schreiben
     out_dir = OUTPUT_ROOT / symbol
     if out_dir.exists():
-        shutil.rmtree(out_dir)
         shutil.rmtree(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
     out_file = out_dir / "matched_data.csv"
@@ -197,20 +191,28 @@ def run():
         raise FileNotFoundError(f"Input root not found: {INPUT_ROOT}")
     OUTPUT_ROOT.mkdir(parents=True, exist_ok=True)
 
+    # Load FNG
     fng_df = load_fng()
     if fng_df is None:
         print("[WARN] Kein FNG gefunden – fng Spalten bleiben leer.")
+    else:
+        print(f"[OK] FNG loaded: {len(fng_df)} rows")
 
-    dom_df = load_dominance()
-    if dom_df is None:
-        print("[WARN] Keine Dominance-Daten gefunden – dom Spalten bleiben leer.")
+    # Load major coins close prices
+    major_coins_dict = {}
+    for coin in MAJOR_COINS:
+        coin_df = load_major_coin_close(coin)
+        if coin_df is not None:
+            major_coins_dict[coin] = coin_df
+            print(f"[OK] {coin} loaded: {len(coin_df)} rows")
+        else:
+            major_coins_dict[coin] = None
 
+    # Process all symbols
     for sym_dir in sorted(INPUT_ROOT.iterdir()):
         if not sym_dir.is_dir():
             continue
-        if sym_dir.name in {FNG_DIR_NAME, DOMINANCE_DIR_NAME}:
-            continue
-        process_symbol_dir(sym_dir, fng_df, dom_df)
+        process_symbol_dir(sym_dir, fng_df, major_coins_dict)
 
 
 if __name__ == "__main__":

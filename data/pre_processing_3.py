@@ -1,16 +1,16 @@
 from pathlib import Path
 import pandas as pd
 
-BASE_DATA_DIR = Path(__file__).resolve().parents[3] / "DATA_STORAGE"/ "csv_data_catalog"
+BASE_DATA_DIR = Path(__file__).resolve().parent / "dataset_storage"
 
-# Quelle: Ergebnis von pre_processing (oder alternativ FILTERED_ROOT verwenden)
-SOURCE_ROOT = BASE_DATA_DIR / "csv_data_all_filtered"    # bei Bedarf ändern auf "csv_data_all_filtered"
-OUTPUT_DIR = BASE_DATA_DIR / "csv_data_all_merged"
+# Quelle: Ergebnis von pre_processing_2
+SOURCE_ROOT = BASE_DATA_DIR / "step_2"
+OUTPUT_DIR = BASE_DATA_DIR / "final"
 OUTPUT_FILENAME = "all_matched_data.csv"
 
 MATCHED_NAME = "matched_data_filtered.csv"
 
-SORT_BY_TIMESTAMP = False        # True => final nach timestamp_nano sortieren (kostet RAM)
+SORT_BY_TIMESTAMP = False        # True => final nach timestamp sortieren (kostet RAM)
 FILL_VALUE = 0                   # Wert für fehlende Spalten
 
 def discover_files():
@@ -59,9 +59,7 @@ def stream_merge(file_infos, all_columns, out_path):
 
 def optional_sort(out_path):
     df = pd.read_csv(out_path)
-    if "timestamp_nano" in df.columns:
-        df = df.sort_values("timestamp_nano")
-    elif "timestamp" in df.columns:
+    if "timestamp" in df.columns:
         df = df.sort_values("timestamp")
     df.to_csv(out_path, index=False)
     print("[INFO] Final file sorted.")
@@ -71,8 +69,10 @@ def run():
         raise FileNotFoundError(f"Source root not found: {SOURCE_ROOT}")
     files = list(discover_files())
     if not files:
-        raise RuntimeError("No matched_data.csv files found.")
+        raise RuntimeError("No matched_data_filtered.csv files found.")
+    print(f"[INFO] Found {len(files)} symbol directories to merge")
     all_cols = union_columns(files)
+    print(f"[INFO] Union schema has {len(all_cols)} columns")
     out_path = OUTPUT_DIR / OUTPUT_FILENAME
     meta, total = stream_merge(files, all_cols, out_path)
     if SORT_BY_TIMESTAMP:

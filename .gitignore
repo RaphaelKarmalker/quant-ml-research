@@ -7,7 +7,11 @@
 *.json
 
 # CSV files
-*.csv
+data/archiv/dataset
+data/dataset_storage/step_1
+data/dataset_storage/step_2
+data/dataset_storage/final
+data/dataset_storage/csv_data_all
 
 __pycache__/
 
@@ -15,3 +19,4 @@ __pycache__/
 transformer/kronos/train/data
 transformer/kronos/train/outputs
 transformer/kronos/train/wandb
+transformer/kronos/train/backtest_results

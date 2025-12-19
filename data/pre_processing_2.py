@@ -2,9 +2,9 @@ from pathlib import Path
 import pandas as pd
 
 # Basis-/Output-Verzeichnisse analog pre_processing.py
-BASE_DATA_DIR = Path(__file__).resolve().parents[3] / "DATA_STORAGE"/ "csv_data_catalog"
-PROCESSED_ROOT = BASE_DATA_DIR / "csv_data_all_processed"
-FILTERED_ROOT = BASE_DATA_DIR / "csv_data_all_filtered"
+BASE_DATA_DIR = Path(__file__).resolve().parent / "dataset_storage"
+PROCESSED_ROOT = BASE_DATA_DIR / "step_1"
+FILTERED_ROOT = BASE_DATA_DIR / "step_2"
 
 INPUT_FILENAME = "matched_data.csv"
 OUTPUT_FILENAME = "matched_data_filtered.csv"
@@ -14,15 +14,11 @@ DROP_COLS = {
     "timestamp_nano",
     "timestamp_iso",
     "metrics_timestamp_nano",
-    "lunar_close",
-    "lunar_high",
-    "lunar_low",
-    "lunar_open",
-    "lunar_timestamp_nano",
-    "lunar_volume_24h",
-    "fng_classification",
+    "btc_timestamp_nano",
+    "eth_timestamp_nano",
+    "doge_timestamp_nano",
+    "sol_timestamp_nano",
     "fng_timestamp_nano",
-    "dom_timestamp_nano",
     "symbol",
 }
 
