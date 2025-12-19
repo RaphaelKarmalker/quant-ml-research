@@ -12,6 +12,6 @@
 __pycache__/
 
 # Data folders
-kronos/train/data
-kronos/train/outputs
-kronos/train/wandb
+transformer/kronos/train/data
+transformer/kronos/train/outputs
+transformer/kronos/train/wandb
