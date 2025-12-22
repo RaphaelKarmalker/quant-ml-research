@@ -20,3 +20,6 @@ transformer/kronos/train/data
 transformer/kronos/train/outputs
 transformer/kronos/train/wandb
 transformer/kronos/train/backtest_results
+
+# Pyenv
+.python-version
