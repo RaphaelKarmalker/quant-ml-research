@@ -8,12 +8,12 @@ a single merged_coin_data.csv file containing:
 - open_interest, funding_rate, long_short_ratio (from METRICS)
 
 Input structure (new):
-  dataset_storage/coin_specific_data/{COIN}/{COIN}USDT-LINEAR/
+  dataset_storage/coin_specific_data/{COIN}USDT-LINEAR/
     - OHLCV.csv
     - METRICS.csv
 
 Output:
-  dataset_storage/coin_specific_data/{COIN}/{COIN}USDT-LINEAR/
+  dataset_storage/coin_specific_data/{COIN}USDT-LINEAR/
     - merged_coin_data.csv
 """
 
@@ -59,7 +59,7 @@ def merge_coin_data(coin: str) -> bool:
     Returns:
         True if successful, False otherwise
     """
-    coin_dir = COIN_DATA_ROOT / coin / f"{coin}USDT-LINEAR"
+    coin_dir = COIN_DATA_ROOT / f"{coin}USDT-LINEAR"
     
     if not coin_dir.exists():
         print(f"[SKIP] {coin}: Directory not found at {coin_dir}")

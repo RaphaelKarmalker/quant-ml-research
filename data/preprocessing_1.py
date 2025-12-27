@@ -9,7 +9,7 @@ OUTPUT_ROOT = BASE_DATA_DIR / "step_1"
 # Major coins for close price and metrics features
 MAJOR_COINS = ["BTC", "ETH", "DOGE", "SOL"]
 MAJOR_COIN_PATHS = {
-    coin: BASE_DATA_DIR / "coin_specific_data" / coin / f"{coin}USDT-LINEAR" / "merged_coin_data.csv"
+    coin: BASE_DATA_DIR / "coin_specific_data" / f"{coin}USDT-LINEAR" / "merged_coin_data.csv"
     for coin in MAJOR_COINS
 }
 

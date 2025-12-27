@@ -3,13 +3,13 @@ Run all preprocessing steps in sequence:
 
 0. pre_processing_1_1.py - Major Coin Data Preparation
    - Merged OHLCV.csv + METRICS.csv für BTC, ETH, DOGE, SOL
-   - Input: dataset_storage/coin_specific_data/{COIN}/{COIN}USDT-LINEAR/OHLCV.csv + METRICS.csv
-   - Output: dataset_storage/coin_specific_data/{COIN}/{COIN}USDT-LINEAR/merged_coin_data.csv
+   - Input: dataset_storage/coin_specific_data/{COIN}USDT-LINEAR/OHLCV.csv + METRICS.csv
+   - Output: dataset_storage/coin_specific_data/{COIN}USDT-LINEAR/merged_coin_data.csv
 
 1. preprocessing_1.py - Feature Merging
    - Lädt OHLCV.csv für jedes Symbol aus csv_data_all/
    - Merged METRICS.csv (open_interest, funding_rate, long_short_ratio) via merge_asof
-   - Merged Major Coin Data von BTC, ETH, DOGE, SOL aus dataset_storage/coin_specific_data/{COIN}/{COIN}USDT-LINEAR/merged_coin_data.csv
+   - Merged Major Coin Data von BTC, ETH, DOGE, SOL aus dataset_storage/coin_specific_data/{COIN}USDT-LINEAR/merged_coin_data.csv
      (Features: close, open_interest, funding_rate, long_short_ratio per coin)
    - Merged FNG (Fear & Greed Index) aus dataset_storage/FNG-INDEX.BYBIT/FNG.csv
    - Output: dataset_storage/step_1/{SYMBOL}/matched_data.csv
