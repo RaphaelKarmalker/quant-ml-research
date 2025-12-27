@@ -6,10 +6,10 @@ BASE_DATA_DIR = Path(__file__).resolve().parent / "dataset_storage"
 INPUT_ROOT = BASE_DATA_DIR / "csv_data_all"
 OUTPUT_ROOT = BASE_DATA_DIR / "step_1"
 
-# Major coins for close price features
+# Major coins for close price and metrics features
 MAJOR_COINS = ["BTC", "ETH", "DOGE", "SOL"]
 MAJOR_COIN_PATHS = {
-    coin: BASE_DATA_DIR / coin / f"{coin}USDT-LINEAR" / "OHLCV.csv"
+    coin: BASE_DATA_DIR / "coin_specific_data" / coin / f"{coin}USDT-LINEAR" / "merged_coin_data.csv"
     for coin in MAJOR_COINS
 }
 
@@ -100,21 +100,40 @@ def load_fng():
     return fng[keep].sort_values("timestamp_nano")
 
 
-def load_major_coin_close(coin: str) -> pd.DataFrame | None:
-    """Load close price from major coin (BTC, ETH, DOGE, SOL)"""
+def load_major_coin_data(coin: str) -> pd.DataFrame | None:
+    """Load close price and metrics from major coin (BTC, ETH, DOGE, SOL)
+    
+    Returns DataFrame with columns:
+    - timestamp_nano
+    - close, open_interest, funding_rate, long_short_ratio (prefixed with coin name)
+    """
     path = MAJOR_COIN_PATHS.get(coin)
     if not path or not path.exists():
-        print(f"[WARN] {coin} OHLCV not found at {path}")
+        print(f"[WARN] {coin} merged data not found at {path}")
         return None
     try:
         df = pd.read_csv(path)
-        if "timestamp_nano" not in df.columns or "close" not in df.columns:
-            print(f"[WARN] {coin} missing required columns")
+        if "timestamp_nano" not in df.columns:
+            print(f"[WARN] {coin} missing timestamp_nano column")
             return None
+        
         df = _prepare_time(df, "timestamp_nano")
-        # Keep only timestamp and close, rename close to {coin}_close
-        result = df[["timestamp_nano", "close"]].copy()
-        result = result.rename(columns={"close": f"{coin.lower()}_close"})
+        
+        # Columns to extract and rename (all prefixed with lowercase coin name)
+        feature_cols = ["close", "open_interest", "funding_rate", "long_short_ratio"]
+        available_cols = [c for c in feature_cols if c in df.columns]
+        
+        if not available_cols:
+            print(f"[WARN] {coin} has no feature columns, skipping")
+            return None
+        
+        # Select timestamp + available features
+        result = df[["timestamp_nano"] + available_cols].copy()
+        
+        # Rename columns with coin prefix
+        rename_map = {col: f"{coin.lower()}_{col}" for col in available_cols}
+        result = result.rename(columns=rename_map)
+        
         return result.sort_values("timestamp_nano")
     except Exception as e:
         print(f"[ERROR] Loading {coin}: {e}")
@@ -198,13 +217,15 @@ def run():
     else:
         print(f"[OK] FNG loaded: {len(fng_df)} rows")
 
-    # Load major coins close prices
+    # Load major coins data (close + metrics)
     major_coins_dict = {}
     for coin in MAJOR_COINS:
-        coin_df = load_major_coin_close(coin)
+        coin_df = load_major_coin_data(coin)
         if coin_df is not None:
             major_coins_dict[coin] = coin_df
-            print(f"[OK] {coin} loaded: {len(coin_df)} rows")
+            # Show available features
+            features = [c.replace(f"{coin.lower()}_", "") for c in coin_df.columns if c != "timestamp_nano"]
+            print(f"[OK] {coin} loaded: {len(coin_df)} rows, features: {features}")
         else:
             major_coins_dict[coin] = None
 

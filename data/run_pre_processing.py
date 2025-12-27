@@ -1,10 +1,16 @@
 """
 Run all preprocessing steps in sequence:
 
+0. pre_processing_1_1.py - Major Coin Data Preparation
+   - Merged OHLCV.csv + METRICS.csv für BTC, ETH, DOGE, SOL
+   - Input: dataset_storage/coin_specific_data/{COIN}/{COIN}USDT-LINEAR/OHLCV.csv + METRICS.csv
+   - Output: dataset_storage/coin_specific_data/{COIN}/{COIN}USDT-LINEAR/merged_coin_data.csv
+
 1. preprocessing_1.py - Feature Merging
    - Lädt OHLCV.csv für jedes Symbol aus csv_data_all/
    - Merged METRICS.csv (open_interest, funding_rate, long_short_ratio) via merge_asof
-   - Merged Close-Preise von BTC, ETH, DOGE, SOL aus dataset_storage/{COIN}/{COIN}USDT-LINEAR/OHLCV.csv
+   - Merged Major Coin Data von BTC, ETH, DOGE, SOL aus dataset_storage/coin_specific_data/{COIN}/{COIN}USDT-LINEAR/merged_coin_data.csv
+     (Features: close, open_interest, funding_rate, long_short_ratio per coin)
    - Merged FNG (Fear & Greed Index) aus dataset_storage/FNG-INDEX.BYBIT/FNG.csv
    - Output: dataset_storage/step_1/{SYMBOL}/matched_data.csv
 
@@ -28,6 +34,7 @@ from pathlib import Path
 # Add current directory to path
 sys.path.insert(0, str(Path(__file__).parent))
 
+import pre_processing_1_1
 import preprocessing_1
 import pre_processing_2
 import pre_processing_3
@@ -38,8 +45,19 @@ def main():
     print("STARTING PREPROCESSING PIPELINE")
     print("=" * 80)
     
+    # Step 0: Prepare major coin data
+    print("\n[STEP 0/4] Running pre_processing_1_1.py - Preparing major coin data...")
+    print("-" * 80)
+    try:
+        pre_processing_1_1.run()
+        print("\n✓ Step 0 completed successfully")
+    except Exception as e:
+        print(f"\n✗ Step 0 failed: {e}")
+        sys.exit(1)
+    
     # Step 1: Merge features
-    print("\n[STEP 1/3] Running preprocessing_1.py - Merging features...")
+    print("\n" + "=" * 80)
+    print("[STEP 1/4] Running preprocessing_1.py - Merging features...")
     print("-" * 80)
     try:
         preprocessing_1.run()
@@ -50,7 +68,7 @@ def main():
     
     # Step 2: Filter and transform
     print("\n" + "=" * 80)
-    print("[STEP 2/3] Running pre_processing_2.py - Filtering and transforming...")
+    print("[STEP 2/4] Running pre_processing_2.py - Filtering and transforming...")
     print("-" * 80)
     try:
         pre_processing_2.run()
@@ -61,7 +79,7 @@ def main():
     
     # Step 3: Merge all symbols
     print("\n" + "=" * 80)
-    print("[STEP 3/3] Running pre_processing_3.py - Merging all symbols...")
+    print("[STEP 3/4] Running pre_processing_3.py - Merging all symbols...")
     print("-" * 80)
     try:
         pre_processing_3.run()
