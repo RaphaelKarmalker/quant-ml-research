@@ -1,19 +1,35 @@
+"""
+Pre-processing step 3 for Bitget data: Merge all symbols into one dataset
+
+Collects all step_2/*/matched_data_filtered.csv
+Union of all columns → unified schema
+Merges into one large file
+
+Input:
+  data_storage_bitget/step_2/{SYMBOL}/matched_data_filtered.csv
+
+Output:
+  data_storage_bitget/final/all_matched_data.csv
+"""
+
 from pathlib import Path
 import pandas as pd
 
-BASE_DATA_DIR = Path(__file__).resolve().parent / "dataset_storage"
+BASE_DATA_DIR = Path(__file__).resolve().parent / "data_storage_bitget"
 
-# Quelle: Ergebnis von pre_processing_2
+# Source: Result from pre_processing_2
 SOURCE_ROOT = BASE_DATA_DIR / "step_2"
 OUTPUT_DIR = BASE_DATA_DIR / "final"
 OUTPUT_FILENAME = "all_matched_data.csv"
 
 MATCHED_NAME = "matched_data_filtered.csv"
 
-SORT_BY_TIMESTAMP = False        # True => final nach timestamp sortieren (kostet RAM)
-FILL_VALUE = 0                   # Wert für fehlende Spalten
+SORT_BY_TIMESTAMP = False  # True => sort final by timestamp (costs RAM)
+FILL_VALUE = 0  # Value for missing columns
+
 
 def discover_files():
+    """Discover all matched_data_filtered.csv files"""
     for sub in sorted(SOURCE_ROOT.iterdir()):
         if not sub.is_dir():
             continue
@@ -21,7 +37,9 @@ def discover_files():
         if file.exists():
             yield sub.name, file
 
+
 def union_columns(file_infos):
+    """Get union of all columns from all files"""
     cols = set()
     for _, f in file_infos:
         try:
@@ -31,23 +49,29 @@ def union_columns(file_infos):
             continue
     return list(cols)
 
+
 def stream_merge(file_infos, all_columns, out_path):
+    """Stream merge all files into one output file"""
     out_path.parent.mkdir(parents=True, exist_ok=True)
     header_written = False
     total_rows = 0
     meta = []
+    
     for inst, f in file_infos:
         try:
             df = pd.read_csv(f)
         except Exception as e:
             print(f"[SKIP] {inst}: read error {e}")
             continue
+        
         if df.empty:
             print(f"[SKIP] {inst}: empty")
             continue
-        # Reindex auf vollständiges Schema
+        
+        # Reindex to full schema
         df = df.reindex(columns=all_columns)
         df = df.fillna(FILL_VALUE)
+        
         rows = len(df)
         mode = "w" if not header_written else "a"
         df.to_csv(out_path, mode=mode, header=not header_written, index=False)
@@ -55,33 +79,46 @@ def stream_merge(file_infos, all_columns, out_path):
         total_rows += rows
         meta.append((inst, rows))
         print(f"[OK] {inst}: {rows} rows appended")
+    
     return meta, total_rows
 
+
 def optional_sort(out_path):
+    """Optional: Sort final file by timestamp"""
     df = pd.read_csv(out_path)
     if "timestamp" in df.columns:
         df = df.sort_values("timestamp")
     df.to_csv(out_path, index=False)
-    print("[INFO] Final file sorted.")
+    print("[INFO] Final file sorted")
+
 
 def run():
     if not SOURCE_ROOT.exists():
         raise FileNotFoundError(f"Source root not found: {SOURCE_ROOT}")
+    
     files = list(discover_files())
     if not files:
-        raise RuntimeError("No matched_data_filtered.csv files found.")
+        raise RuntimeError("No matched_data_filtered.csv files found")
+    
     print(f"[INFO] Found {len(files)} symbol directories to merge")
+    
     all_cols = union_columns(files)
     print(f"[INFO] Union schema has {len(all_cols)} columns")
+    
     out_path = OUTPUT_DIR / OUTPUT_FILENAME
     meta, total = stream_merge(files, all_cols, out_path)
+    
     if SORT_BY_TIMESTAMP:
         optional_sort(out_path)
-    print("\nSummary:")
+    
+    print("\n" + "=" * 80)
+    print("Summary:")
     for inst, rows in meta:
         print(f"  {inst}: {rows}")
     print(f"TOTAL rows: {total}")
     print(f"OUTPUT: {out_path}")
+    print("=" * 80)
+
 
 if __name__ == "__main__":
     run()
