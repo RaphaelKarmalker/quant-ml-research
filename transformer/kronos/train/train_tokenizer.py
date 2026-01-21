@@ -258,8 +258,14 @@ def train_model(model, device, config, save_dir, logger, rank, world_size):
             if avg_val_loss < best_val_loss:
                 best_val_loss = avg_val_loss
                 save_path = f"{save_dir}/checkpoints/best_model"
-                # handle both DDP and non-DDP
-                (model.module if hasattr(model, "module") else model).save_pretrained(save_path)
+                os.makedirs(save_path, exist_ok=True)
+                # Save model state dict directly (more reliable than save_pretrained)
+                model_to_save = model.module if hasattr(model, "module") else model
+                torch.save({
+                    'model_state_dict': model_to_save.state_dict(),
+                    'config': config,
+                    'val_loss': best_val_loss,
+                }, f"{save_path}/tokenizer.pt")
                 print(f"Best model saved to {save_path} (Val Loss: {best_val_loss:.4f})")
                 if logger:
                     artifact = wandb.Artifact("best_model_tokenizer", type="model")
