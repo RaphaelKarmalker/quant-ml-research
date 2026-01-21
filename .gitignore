@@ -8,6 +8,7 @@
 
 # CSV files
 data/archiv
+data/dataset_storage
 data/data_storage_bitget/step_1
 data/data_storage_bitget/step_2
 data/data_storage_bitget/final
