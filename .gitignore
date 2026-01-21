@@ -7,11 +7,11 @@
 *.json
 
 # CSV files
-data/archiv/dataset
-data/dataset_storage/step_1
-data/dataset_storage/step_2
-data/dataset_storage/final
-data/dataset_storage/csv_data_all
+data/archiv
+data/data_storage_bitget/step_1
+data/data_storage_bitget/step_2
+data/data_storage_bitget/final
+data/data_storage_bitget/csv_data_all_bitget
 
 __pycache__/
 
