@@ -178,7 +178,14 @@ def train_model(model, tokenizer, device, config, save_dir, logger, rank, world_
             if avg_val_loss < best_val_loss:
                 best_val_loss = avg_val_loss
                 save_path = f"{save_dir}/checkpoints/best_model"
-                (model.module if hasattr(model, "module") else model).save_pretrained(save_path)
+                os.makedirs(save_path, exist_ok=True)
+                # Save model state dict directly (more reliable than save_pretrained)
+                model_to_save = model.module if hasattr(model, "module") else model
+                torch.save({
+                    'model_state_dict': model_to_save.state_dict(),
+                    'config': config,
+                    'val_loss': best_val_loss,
+                }, f"{save_path}/predictor.pt")
                 print(f"Best model saved to {save_path} (Val Loss: {best_val_loss:.4f})")
                 if logger:
                     artifact = wandb.Artifact("best_model_predictor", type="model")
@@ -220,8 +227,33 @@ def main(config: dict):
 
     safe_barrier()
 
-    # Model Initialization
-    tokenizer = KronosTokenizer.from_pretrained(config['finetuned_tokenizer_path'])
+    # Model Initialization - Load tokenizer from our custom checkpoint format
+    tokenizer_path = config['finetuned_tokenizer_path']
+    tokenizer_checkpoint = os.path.join(tokenizer_path, 'tokenizer.pt')
+    
+    if os.path.exists(tokenizer_checkpoint):
+        # Load from our torch.save format
+        if rank == 0:
+            print(f"[Tokenizer] Loading from checkpoint: {tokenizer_checkpoint}")
+        checkpoint = torch.load(tokenizer_checkpoint, map_location=device)
+        tokenizer_config = checkpoint.get('config', config)
+        arch = tokenizer_config.get('tokenizer_arch', config['tokenizer_arch'])
+        tokenizer = KronosTokenizer(
+            arch['d_in'], arch['d_model'], arch['n_heads'], arch['ff_dim'],
+            arch['n_enc_layers'], arch['n_dec_layers'],
+            arch['ffn_dropout_p'], arch['attn_dropout_p'], arch['resid_dropout_p'],
+            arch['s1_bits'], arch['s2_bits'],
+            arch['beta'], arch['gamma0'], arch['gamma'], arch['zeta'], arch['group_size']
+        )
+        tokenizer.load_state_dict(checkpoint['model_state_dict'])
+        if rank == 0:
+            print(f"[Tokenizer] Loaded with val_loss: {checkpoint.get('val_loss', 'N/A')}")
+    else:
+        # Fallback to HuggingFace format
+        if rank == 0:
+            print(f"[Tokenizer] Loading from HuggingFace format: {tokenizer_path}")
+        tokenizer = KronosTokenizer.from_pretrained(tokenizer_path)
+    
     tokenizer.eval().to(device)
 
     if config.get('init_predictor_from_pretrained', True):

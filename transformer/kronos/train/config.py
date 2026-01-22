@@ -199,9 +199,8 @@ class Config:
         self.wandb_tag = 'training'
         self.wandb_name = 'training'
 
-        # Base directory for saving model checkpoints and results.
-        # Using a general 'outputs' directory is a common practice.
-        self.save_path = "./data/models"
+        # Base directory for saving model checkpoints and results (absolute path)
+        self.save_path = os.path.join(_base_dir, "data", "models")
         self.tokenizer_save_folder_name = 'tokenizer_model'
         self.predictor_save_folder_name = 'finetune_model'
 
