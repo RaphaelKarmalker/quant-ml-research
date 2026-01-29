@@ -17,13 +17,14 @@ import shutil
 
 BASE_DATA_DIR = Path(__file__).resolve().parent / "data_storage_bitget"
 OUTPUT_DIR = BASE_DATA_DIR / "output"
-INPUT_ROOT = OUTPUT_DIR / "step_0"
-OUTPUT_ROOT = OUTPUT_DIR / "step_1"
+INTERMEDIATE_DIR = OUTPUT_DIR / "intermediate"
+INPUT_ROOT = INTERMEDIATE_DIR / "step_0"
+OUTPUT_ROOT = INTERMEDIATE_DIR / "step_1"
 
 # Major coins for close price and volume features
 MAJOR_COINS = ["BTC", "ETH", "DOGE", "SOL"]
 MAJOR_COIN_PATHS = {
-    coin: OUTPUT_DIR / "step_0_large_coins" / f"{coin}USDT-LINEAR" / "multi_metric.csv"
+    coin: INTERMEDIATE_DIR / "step_0_large_coins" / f"{coin}USDT-LINEAR" / "multi_metric.csv"
     for coin in MAJOR_COINS
 }
 

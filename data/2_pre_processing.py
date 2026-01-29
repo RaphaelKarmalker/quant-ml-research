@@ -17,8 +17,9 @@ import pandas as pd
 
 BASE_DATA_DIR = Path(__file__).resolve().parent / "data_storage_bitget"
 OUTPUT_DIR = BASE_DATA_DIR / "output"
-PROCESSED_ROOT = OUTPUT_DIR / "step_1"
-FILTERED_ROOT = OUTPUT_DIR / "step_2"
+INTERMEDIATE_DIR = OUTPUT_DIR / "intermediate"
+PROCESSED_ROOT = INTERMEDIATE_DIR / "step_1"
+FILTERED_ROOT = INTERMEDIATE_DIR / "step_2"
 
 INPUT_FILENAME = "matched_data.csv"
 OUTPUT_FILENAME = "matched_data_filtered.csv"

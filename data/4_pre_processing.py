@@ -20,8 +20,9 @@ import numpy as np
 
 BASE_DATA_DIR = Path(__file__).resolve().parent / "data_storage_bitget"
 OUTPUT_DIR = BASE_DATA_DIR / "output"
-INPUT_FILE = OUTPUT_DIR / "final" / "all_matched_data.csv"
-OUTPUT_FILE = OUTPUT_DIR / "final" / "all_matched_data_clean.csv"
+INTERMEDIATE_DIR = OUTPUT_DIR / "intermediate"
+INPUT_FILE = INTERMEDIATE_DIR / "step_3" / "all_matched_data.csv"
+OUTPUT_FILE = INTERMEDIATE_DIR / "step_3" / "all_matched_data_clean.csv"
 
 
 def analyze_column(series: pd.Series) -> dict:

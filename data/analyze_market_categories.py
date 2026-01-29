@@ -20,7 +20,8 @@ import matplotlib.pyplot as plt
 
 BASE_DATA_DIR = Path(__file__).resolve().parent / "data_storage_bitget"
 OUTPUT_DIR = BASE_DATA_DIR / "output"
-INPUT_FILE = OUTPUT_DIR / "final" / "all_matched_data_clean.csv"
+FINAL_DIR = OUTPUT_DIR / "final"
+INPUT_FILE = FINAL_DIR / "dataset.csv"
 
 
 def parse_categories(cat_str):
@@ -160,7 +161,7 @@ def analyze_categories():
     plt.tight_layout()
     
     # Save plot 1
-    output_plot1 = OUTPUT_DIR / "final" / "instruments_by_category_count.png"
+    output_plot1 = FINAL_DIR / "instruments_by_category_count.png"
     plt.savefig(output_plot1, dpi=300, bbox_inches='tight')
     print(f"\n✓ Category count distribution saved to: {output_plot1}")
     
@@ -188,7 +189,7 @@ def analyze_categories():
         plt.tight_layout()
         
         # Save plot 2
-        output_plot2 = OUTPUT_DIR / "final" / "market_categories_histogram.png"
+        output_plot2 = FINAL_DIR / "market_categories_histogram.png"
         plt.savefig(output_plot2, dpi=300, bbox_inches='tight')
         print(f"✓ Category frequency histogram saved to: {output_plot2}")
         

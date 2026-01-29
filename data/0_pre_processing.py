@@ -32,8 +32,9 @@ DEPTH_DIR = BASE_DATA_DIR / "Depth_Bitget"
 
 # Output directories
 OUTPUT_DIR = BASE_DATA_DIR / "output"
-OUTPUT_ALL_DIR = OUTPUT_DIR / "step_0"
-OUTPUT_LARGE_COINS_DIR = OUTPUT_DIR / "step_0_large_coins"
+INTERMEDIATE_DIR = OUTPUT_DIR / "intermediate"
+OUTPUT_ALL_DIR = INTERMEDIATE_DIR / "step_0"
+OUTPUT_LARGE_COINS_DIR = INTERMEDIATE_DIR / "step_0_large_coins"
 
 
 def _read_csv_safe(path: Path) -> pd.DataFrame | None:

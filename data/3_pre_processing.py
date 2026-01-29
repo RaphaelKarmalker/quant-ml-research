@@ -17,10 +17,11 @@ import pandas as pd
 
 BASE_DATA_DIR = Path(__file__).resolve().parent / "data_storage_bitget"
 OUTPUT_BASE = BASE_DATA_DIR / "output"
+INTERMEDIATE_DIR = OUTPUT_BASE / "intermediate"
 
 # Source: Result from pre_processing_2
-SOURCE_ROOT = OUTPUT_BASE / "step_2"
-OUTPUT_DIR = OUTPUT_BASE / "final"
+SOURCE_ROOT = INTERMEDIATE_DIR / "step_2"
+OUTPUT_DIR = INTERMEDIATE_DIR / "step_3"
 OUTPUT_FILENAME = "all_matched_data.csv"
 
 MATCHED_NAME = "matched_data_filtered.csv"
