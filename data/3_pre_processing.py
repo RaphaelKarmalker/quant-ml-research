@@ -16,10 +16,11 @@ from pathlib import Path
 import pandas as pd
 
 BASE_DATA_DIR = Path(__file__).resolve().parent / "data_storage_bitget"
+OUTPUT_BASE = BASE_DATA_DIR / "output"
 
 # Source: Result from pre_processing_2
-SOURCE_ROOT = BASE_DATA_DIR / "step_2"
-OUTPUT_DIR = BASE_DATA_DIR / "final"
+SOURCE_ROOT = OUTPUT_BASE / "step_2"
+OUTPUT_DIR = OUTPUT_BASE / "final"
 OUTPUT_FILENAME = "all_matched_data.csv"
 
 MATCHED_NAME = "matched_data_filtered.csv"
@@ -47,7 +48,16 @@ def union_columns(file_infos):
             cols.update(head.columns.tolist())
         except Exception:
             continue
-    return list(cols)
+    
+    # Remove any duplicate marker columns that shouldn't exist
+    cols = {c for c in cols if not c.endswith("_x") and not c.endswith("_y")}
+    
+    # Define column order priority
+    priority_cols = ["timestamp", "ts_since_listing", "instrument_id"]
+    ordered = [c for c in priority_cols if c in cols]
+    remaining = sorted([c for c in cols if c not in priority_cols])
+    
+    return ordered + remaining
 
 
 def stream_merge(file_infos, all_columns, out_path):
@@ -71,6 +81,9 @@ def stream_merge(file_infos, all_columns, out_path):
         # Reindex to full schema
         df = df.reindex(columns=all_columns)
         df = df.fillna(FILL_VALUE)
+        
+        # Ensure no duplicate columns
+        df = df.loc[:, ~df.columns.duplicated()]
         
         rows = len(df)
         mode = "w" if not header_written else "a"

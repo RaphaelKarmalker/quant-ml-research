@@ -16,13 +16,14 @@ from pathlib import Path
 import pandas as pd
 
 BASE_DATA_DIR = Path(__file__).resolve().parent / "data_storage_bitget"
-PROCESSED_ROOT = BASE_DATA_DIR / "step_1"
-FILTERED_ROOT = BASE_DATA_DIR / "step_2"
+OUTPUT_DIR = BASE_DATA_DIR / "output"
+PROCESSED_ROOT = OUTPUT_DIR / "step_1"
+FILTERED_ROOT = OUTPUT_DIR / "step_2"
 
 INPUT_FILENAME = "matched_data.csv"
 OUTPUT_FILENAME = "matched_data_filtered.csv"
 
-# Columns to remove
+# Columns to remove (timestamps that are not needed after readable timestamp is created)
 DROP_COLS = {
     "timestamp_nano",
     "timestamp_iso",
@@ -33,6 +34,9 @@ DROP_COLS = {
     "fng_timestamp_nano",
     "symbol",
 }
+
+# Pattern-based columns to drop (any column matching these patterns)
+DROP_PATTERNS = ["_timestamp_nano", "_timestamp_iso"]
 
 
 def _load_csv(path: Path) -> pd.DataFrame | None:
@@ -95,9 +99,22 @@ def process_directory(sym_dir: Path, dest_root: Path):
     df["ts_since_listing"] = range(1, len(df) + 1)
     df["timestamp"] = new_timestamp
     
-    # Remove columns
+    # Remove explicit columns
     cols_to_drop = [c for c in DROP_COLS if c in df.columns]
+    
+    # Remove pattern-based columns (e.g. any column ending with _timestamp_nano or _timestamp_iso)
+    for pattern in DROP_PATTERNS:
+        cols_to_drop.extend([c for c in df.columns if pattern in c])
+    
+    # Also remove any duplicate symbol columns that might have slipped through
+    cols_to_drop.extend([c for c in df.columns if c.endswith("_x") or c.endswith("_y")])
+    
+    # Dedupe the drop list
+    cols_to_drop = list(set(cols_to_drop))
     df = df.drop(columns=cols_to_drop, errors="ignore")
+    
+    # Ensure no duplicate columns
+    df = df.loc[:, ~df.columns.duplicated()]
     
     # Column order: timestamp, ts_since_listing, instrument_id followed by rest
     front = ["timestamp", "ts_since_listing"]

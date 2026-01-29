@@ -4,8 +4,8 @@ Pre-processing step 1 for Bitget data: Merge major coin features to all symbols
 This script merges close and volume from major coins (BTC, ETH, DOGE, SOL) to all other symbols using merge_asof.
 
 Input structure:
-  data_storage_bitget/large_coins_bitget/{COIN}USDT-LINEAR/OHLCV.csv (BTC, ETH, DOGE, SOL reference data)
-  data_storage_bitget/csv_data_all_bitget/{SYMBOL}/OHLCV.csv (all symbols)
+  data_storage_bitget/step_0/{SYMBOL}/multi_metric.csv (output from step 0)
+  data_storage_bitget/step_0_large_coins/{COIN}USDT-LINEAR/multi_metric.csv (BTC, ETH, DOGE, SOL reference data)
 
 Output:
   data_storage_bitget/step_1/{SYMBOL}/matched_data.csv
@@ -16,13 +16,14 @@ import pandas as pd
 import shutil
 
 BASE_DATA_DIR = Path(__file__).resolve().parent / "data_storage_bitget"
-INPUT_ROOT = BASE_DATA_DIR / "csv_data_all_bitget"
-OUTPUT_ROOT = BASE_DATA_DIR / "step_1"
+OUTPUT_DIR = BASE_DATA_DIR / "output"
+INPUT_ROOT = OUTPUT_DIR / "step_0"
+OUTPUT_ROOT = OUTPUT_DIR / "step_1"
 
 # Major coins for close price and volume features
 MAJOR_COINS = ["BTC", "ETH", "DOGE", "SOL"]
 MAJOR_COIN_PATHS = {
-    coin: BASE_DATA_DIR / "large_coins_bitget" / f"{coin}USDT-LINEAR" / "OHLCV.csv"
+    coin: OUTPUT_DIR / "step_0_large_coins" / f"{coin}USDT-LINEAR" / "multi_metric.csv"
     for coin in MAJOR_COINS
 }
 
@@ -96,6 +97,47 @@ def load_major_coin_data(coin: str) -> pd.DataFrame | None:
         return None
 
 
+def load_major_coin_lunar(coin: str) -> pd.DataFrame | None:
+    """Load LUNAR data from major coin (BTC, ETH, DOGE, SOL)
+    
+    Returns DataFrame with columns prefixed with {coin}_lunar_
+    """
+    path = MAJOR_COIN_PATHS.get(coin)
+    if not path or not path.exists():
+        print(f"[WARN] {coin} LUNAR data not found at {path}")
+        return None
+    
+    try:
+        df = pd.read_csv(path)
+        if "timestamp_nano" not in df.columns:
+            print(f"[WARN] {coin} LUNAR missing timestamp_nano column")
+            return None
+        
+        df = _prepare_time(df, "timestamp_nano")
+        
+        # Lunar columns from step_0 (prefixed with lunar_)
+        lunar_cols = [c for c in df.columns if c.startswith("lunar_")]
+        
+        if not lunar_cols:
+            print(f"[WARN] {coin} has no lunar_ columns")
+            return None
+        
+        # Select timestamp + lunar columns
+        result = df[["timestamp_nano"] + lunar_cols].copy()
+        
+        # Rename lunar_ columns to {coin}_lunar_ (e.g. lunar_sentiment -> btc_lunar_sentiment)
+        rename_dict = {col: f"{coin.lower()}_{col}" for col in lunar_cols}
+        result = result.rename(columns=rename_dict)
+        
+        # Remove duplicates (keep last)
+        result = result.drop_duplicates(subset=["timestamp_nano"], keep="last")
+        
+        return result.sort_values("timestamp_nano")
+    except Exception as e:
+        print(f"[ERROR] Loading {coin} LUNAR: {e}")
+        return None
+
+
 def load_fng() -> pd.DataFrame | None:
     """Load Fear & Greed Index data
     
@@ -137,35 +179,35 @@ def load_fng() -> pd.DataFrame | None:
         return None
 
 
-def process_symbol_dir(sym_dir: Path, major_coins_dict: dict, fng_df: pd.DataFrame):
+def process_symbol_dir(sym_dir: Path, major_coins_dict: dict, major_coins_lunar_dict: dict, fng_df: pd.DataFrame):
     """Process single symbol directory and merge with major coin features"""
     symbol = sym_dir.name
-    ohlcv_path = sym_dir / "OHLCV.csv"
+    input_path = sym_dir / "multi_metric.csv"
     
     # Check if directory is empty
     if not any(sym_dir.iterdir()):
         print(f"[SKIP] {symbol}: Directory is empty")
         return
     
-    ohlcv = _read_csv_safe(ohlcv_path)
-    if ohlcv is None:
-        print(f"[SKIP] {symbol}: OHLCV.csv missing")
+    base_df = _read_csv_safe(input_path)
+    if base_df is None:
+        print(f"[SKIP] {symbol}: multi_metric.csv missing")
         return
     
-    required_ohlcv = {"timestamp_nano", "timestamp_iso", "symbol", "open", "high", "low", "close", "volume"}
-    missing = required_ohlcv.difference(ohlcv.columns)
+    required_cols = {"timestamp_nano", "timestamp_iso", "symbol", "open", "high", "low", "close", "volume"}
+    missing = required_cols.difference(base_df.columns)
     if missing:
-        print(f"[WARN] {symbol}: OHLCV missing columns {missing}, skipping")
+        print(f"[WARN] {symbol}: multi_metric.csv missing columns {missing}, skipping")
         return
     
-    ohlcv = _prepare_time(ohlcv, "timestamp_nano")
-    ohlcv = ohlcv.sort_values("timestamp_nano").reset_index(drop=True)
+    base_df = _prepare_time(base_df, "timestamp_nano")
+    base_df = base_df.sort_values("timestamp_nano").reset_index(drop=True)
     
     # Base DataFrame + instrument_id
-    merged = ohlcv.copy()
+    merged = base_df.copy()
     merged["instrument_id"] = merged["symbol"]
     
-    # Merge major coin features using merge_asof (backward fill)
+    # Merge major coin OHLCV features using merge_asof (backward fill)
     for coin_name, coin_df in major_coins_dict.items():
         if coin_df is not None and not coin_df.empty:
             merged = pd.merge_asof(
@@ -178,6 +220,20 @@ def process_symbol_dir(sym_dir: Path, major_coins_dict: dict, fng_df: pd.DataFra
             # Forward fill coin features
             coin_cols = [c for c in coin_df.columns if c != "timestamp_nano"]
             merged[coin_cols] = merged[coin_cols].ffill()
+    
+    # Merge major coin LUNAR features using merge_asof (backward fill)
+    for coin_name, lunar_df in major_coins_lunar_dict.items():
+        if lunar_df is not None and not lunar_df.empty:
+            merged = pd.merge_asof(
+                merged.sort_values("timestamp_nano"),
+                lunar_df,
+                on="timestamp_nano",
+                direction="backward"
+            )
+            
+            # Forward fill lunar features
+            lunar_cols = [c for c in lunar_df.columns if c != "timestamp_nano"]
+            merged[lunar_cols] = merged[lunar_cols].ffill()
     
     # Merge FNG (global) using merge_asof (backward fill)
     if fng_df is not None and not fng_df.empty:
@@ -193,12 +249,24 @@ def process_symbol_dir(sym_dir: Path, major_coins_dict: dict, fng_df: pd.DataFra
     
     # Column ordering
     base_cols = ["timestamp_nano", "timestamp_iso", "instrument_id", "open", "high", "low", "close", "volume"]
-    major_coin_cols = sorted([c for c in merged.columns if any(c.startswith(f"{coin.lower()}_") for coin in MAJOR_COINS)])
+    depth_cols = sorted([c for c in merged.columns if c.startswith("depth_")])
+    lunar_cols = sorted([c for c in merged.columns if c.startswith("lunar_") and not any(c.startswith(f"{coin.lower()}_lunar_") for coin in MAJOR_COINS)])
+    major_coin_ohlcv_cols = sorted([c for c in merged.columns if any(c.startswith(f"{coin.lower()}_") for coin in MAJOR_COINS) and not "_lunar_" in c])
+    major_coin_lunar_cols = sorted([c for c in merged.columns if any(c.startswith(f"{coin.lower()}_lunar_") for coin in MAJOR_COINS)])
     fng_cols = ["fng"] if "fng" in merged.columns else []
-    others = [c for c in merged.columns if c not in base_cols + major_coin_cols + fng_cols]
     
-    final_cols = base_cols + major_coin_cols + fng_cols + [c for c in others if c not in base_cols]
+    # Remove symbol column (we have instrument_id)
+    if "symbol" in merged.columns:
+        merged = merged.drop(columns=["symbol"])
+    
+    # Build final column order
+    all_ordered = base_cols + depth_cols + lunar_cols + major_coin_ohlcv_cols + major_coin_lunar_cols + fng_cols
+    remaining = [c for c in merged.columns if c not in all_ordered]
+    final_cols = [c for c in all_ordered if c in merged.columns] + remaining
     merged = merged[final_cols]
+    
+    # Remove any duplicate columns (from merge_asof)
+    merged = merged.loc[:, ~merged.columns.duplicated()]
     
     # Fill empty entries with 0
     merged = merged.replace("", pd.NA).fillna(0)
@@ -218,15 +286,26 @@ def run():
         raise FileNotFoundError(f"Input root not found: {INPUT_ROOT}")
     OUTPUT_ROOT.mkdir(parents=True, exist_ok=True)
     
-    # Load major coins data (close + volume)
+    # Load major coins OHLCV data (close + volume)
     major_coins_dict = {}
     for coin in MAJOR_COINS:
         coin_df = load_major_coin_data(coin)
         if coin_df is not None:
             major_coins_dict[coin] = coin_df
-            print(f"[OK] {coin} loaded: {len(coin_df)} rows")
+            print(f"[OK] {coin} OHLCV loaded: {len(coin_df)} rows")
         else:
             major_coins_dict[coin] = None
+    
+    # Load major coins LUNAR data
+    major_coins_lunar_dict = {}
+    for coin in MAJOR_COINS:
+        lunar_df = load_major_coin_lunar(coin)
+        if lunar_df is not None:
+            major_coins_lunar_dict[coin] = lunar_df
+            lunar_cols_count = len([c for c in lunar_df.columns if c != "timestamp_nano"])
+            print(f"[OK] {coin} LUNAR loaded: {len(lunar_df)} rows, {lunar_cols_count} features")
+        else:
+            major_coins_lunar_dict[coin] = None
     
     # Load FNG data
     fng_df = load_fng()
@@ -240,7 +319,7 @@ def run():
     for sym_dir in sorted(INPUT_ROOT.iterdir()):
         if not sym_dir.is_dir():
             continue
-        process_symbol_dir(sym_dir, major_coins_dict, fng_df)
+        process_symbol_dir(sym_dir, major_coins_dict, major_coins_lunar_dict, fng_df)
         symbol_count += 1
     
     print(f"\n[DONE] Processed {symbol_count} symbols")

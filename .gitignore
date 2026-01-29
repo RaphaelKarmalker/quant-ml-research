@@ -9,10 +9,14 @@
 # CSV files
 data/archiv
 data/dataset_storage
+data/data_storage_bitget/step_0
 data/data_storage_bitget/step_1
 data/data_storage_bitget/step_2
+data/data_storage_bitget/step_3
+data/data_storage_bitget/output
 data/data_storage_bitget/final
 data/data_storage_bitget/csv_data_all_bitget
+data/data_storage_bitget/Depth_Bitget 
 
 __pycache__/
 

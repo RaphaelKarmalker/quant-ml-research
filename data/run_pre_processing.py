@@ -1,10 +1,12 @@
 """
-Run all pre-processing steps (1-3) automatically for Bitget data
+Run all pre-processing steps (0-4) automatically for Bitget data
 
 Executes:
-1. Pre-processing 1: Merge major coin features (BTC, ETH, DOGE, SOL) + FNG
+0. Pre-processing 0: Create multi-metric CSV from OHLCV + DEPTH + LUNAR
+1. Pre-processing 1: Merge major coin features (BTC, ETH, DOGE, SOL) + FNG + Major Coin LUNAR
 2. Pre-processing 2: Cleanup timestamps and create readable format
 3. Pre-processing 3: Merge all symbols into one final dataset
+4. Pre-processing 4: Data quality check & fix (NaN, empty values -> 0)
 """
 
 import subprocess
@@ -16,9 +18,11 @@ PYTHON_EXE = sys.executable
 
 # Pre-processing scripts in order
 SCRIPTS = [
+    "0_pre_processing.py",
     "1_pre_processing.py",
     "2_pre_processing.py",
-    "3_pre_processing.py"
+    "3_pre_processing.py",
+    "4_pre_processing.py"
 ]
 
 def run_script(script_name: str) -> bool:
