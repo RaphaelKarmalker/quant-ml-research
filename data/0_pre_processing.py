@@ -5,6 +5,8 @@ This script processes raw OHLCV data and enriches it by mapping:
 1. DEPTH data (order book snapshots) - uses closest timestamp (backward direction)
 2. LUNAR data (social/market metrics) - uses closest timestamp (hourly data mapped to each OHLCV row)
 
+FILTER: Only processes coins where BOTH Lunar AND Depth data are available!
+
 Input structure:
   data_storage_bitget/csv_data_all_bitget/{SYMBOL}/OHLCV.csv
   data_storage_bitget/csv_data_all_bitget/{SYMBOL}/LUNAR.csv
@@ -22,6 +24,12 @@ Output:
 from pathlib import Path
 import pandas as pd
 import shutil
+
+# ============================================================================
+# CONFIGURATION: Require both Lunar and Depth data
+# ============================================================================
+REQUIRE_BOTH_LUNAR_AND_DEPTH = True  # Set to False to process all coins
+# ============================================================================
 
 BASE_DATA_DIR = Path(__file__).resolve().parent / "data_storage_bitget"
 
@@ -176,6 +184,20 @@ def process_symbol(sym_dir: Path, output_root: Path, is_large_coin: bool = False
         print(f"[SKIP] {symbol}: OHLCV.csv missing")
         return False
     
+    # PRE-CHECK: If REQUIRE_BOTH_LUNAR_AND_DEPTH is True, check availability before processing
+    if REQUIRE_BOTH_LUNAR_AND_DEPTH:
+        # Check if Lunar exists
+        if not lunar_path.exists():
+            print(f"[SKIP] {symbol}: LUNAR.csv missing (required)")
+            return False
+        
+        # Check if Depth exists
+        base_symbol = get_base_symbol(symbol)
+        depth_path = DEPTH_DIR / base_symbol / "DEPTH.csv"
+        if not depth_path.exists():
+            print(f"[SKIP] {symbol}: DEPTH.csv missing for {base_symbol} (required)")
+            return False
+    
     # Load OHLCV
     ohlcv = _read_csv_safe(ohlcv_path)
     if ohlcv is None:
@@ -258,6 +280,8 @@ def run():
     """Main entry point"""
     print("=" * 60)
     print("Step 0: Creating multi-metric CSVs from OHLCV + DEPTH + LUNAR")
+    if REQUIRE_BOTH_LUNAR_AND_DEPTH:
+        print("FILTER: Only processing coins with BOTH Lunar AND Depth data")
     print("=" * 60)
     
     # Create output directories
@@ -306,8 +330,11 @@ def run():
     print("\n" + "=" * 60)
     print("SUMMARY")
     print("=" * 60)
+    if REQUIRE_BOTH_LUNAR_AND_DEPTH:
+        print("Filter: Only coins with BOTH Lunar AND Depth data")
     print(f"csv_data_all_bitget: {all_success}/{all_count} symbols processed")
     print(f"large_coins_bitget:  {large_success}/{large_count} symbols processed")
+    print(f"Total processed: {all_success + large_success}/{all_count + large_count}")
     print(f"Output directories:")
     print(f"  - {OUTPUT_ALL_DIR}")
     print(f"  - {OUTPUT_LARGE_COINS_DIR}")
@@ -316,3 +343,5 @@ def run():
 
 if __name__ == "__main__":
     run()
+
+

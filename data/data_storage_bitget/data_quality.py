@@ -183,31 +183,41 @@ def plot_results(df):
     # 2. Lunar delay distribution (only positive delays)
     ax2 = axes[0, 1]
     lunar_delays = df[df['lunar_delay_hours'].notna() & (df['lunar_delay_hours'] > 0)]['lunar_delay_hours']
+    lunar_no_delay = len(df[(df['has_lunar'] == True) & (df['lunar_delay_hours'] == 0)])
     
     if len(lunar_delays) > 0:
         ax2.hist(lunar_delays, bins=30, color='green', alpha=0.7, edgecolor='black')
         ax2.set_xlabel('Delay (hours)')
         ax2.set_ylabel('Number of Instruments')
-        ax2.set_title(f'Lunar Data Delay Distribution\nAvg: {lunar_delays.mean():.2f}h, Median: {lunar_delays.median():.2f}h')
+        title_text = f'Lunar Data Delay Distribution (only delays > 0)\n'
+        title_text += f'With delay: {len(lunar_delays)} | No delay: {lunar_no_delay}\n'
+        title_text += f'Avg: {lunar_delays.mean():.2f}h, Median: {lunar_delays.median():.2f}h'
+        ax2.set_title(title_text, fontsize=9)
         ax2.axvline(lunar_delays.mean(), color='red', linestyle='--', linewidth=2, label=f'Mean: {lunar_delays.mean():.2f}h')
         ax2.legend()
     else:
-        ax2.text(0.5, 0.5, 'No Lunar Delays', ha='center', va='center', transform=ax2.transAxes)
+        ax2.text(0.5, 0.5, f'No Lunar Delays\n{lunar_no_delay} instruments with no delay', 
+                ha='center', va='center', transform=ax2.transAxes)
         ax2.set_title('Lunar Data Delay Distribution')
     
     # 3. Depth delay distribution (only positive delays)
     ax3 = axes[1, 0]
     depth_delays = df[df['depth_delay_hours'].notna() & (df['depth_delay_hours'] > 0)]['depth_delay_hours']
+    depth_no_delay = len(df[(df['has_depth'] == True) & (df['depth_delay_hours'] == 0)])
     
     if len(depth_delays) > 0:
         ax3.hist(depth_delays, bins=30, color='orange', alpha=0.7, edgecolor='black')
         ax3.set_xlabel('Delay (hours)')
         ax3.set_ylabel('Number of Instruments')
-        ax3.set_title(f'Depth Data Delay Distribution\nAvg: {depth_delays.mean():.2f}h, Median: {depth_delays.median():.2f}h')
+        title_text = f'Depth Data Delay Distribution (only delays > 0)\n'
+        title_text += f'With delay: {len(depth_delays)} | No delay: {depth_no_delay}\n'
+        title_text += f'Avg: {depth_delays.mean():.2f}h, Median: {depth_delays.median():.2f}h'
+        ax3.set_title(title_text, fontsize=9)
         ax3.axvline(depth_delays.mean(), color='red', linestyle='--', linewidth=2, label=f'Mean: {depth_delays.mean():.2f}h')
         ax3.legend()
     else:
-        ax3.text(0.5, 0.5, 'No Depth Delays', ha='center', va='center', transform=ax3.transAxes)
+        ax3.text(0.5, 0.5, f'No Depth Delays\n{depth_no_delay} instruments with no delay', 
+                ha='center', va='center', transform=ax3.transAxes)
         ax3.set_title('Depth Data Delay Distribution')
     
     # 4. Coverage comparison
@@ -315,7 +325,11 @@ def print_summary_statistics(df):
     
     # Lunar delay statistics (only positive delays)
     lunar_delays = df[df['lunar_delay_hours'].notna() & (df['lunar_delay_hours'] > 0)]['lunar_delay_hours']
+    lunar_no_delay = len(df[(df['has_lunar'] == True) & (df['lunar_delay_hours'] == 0)])
+    
     print(f"\nLunar Data Delay Statistics:")
+    print(f"  - Instruments with Lunar data: {df['has_lunar'].sum()}")
+    print(f"  - Instruments with NO delay (starts at or before OHLCV): {lunar_no_delay}")
     print(f"  - Instruments with delay > 0: {len(lunar_delays)}")
     if len(lunar_delays) > 0:
         print(f"  - Average delay: {lunar_delays.mean():.2f} hours ({lunar_delays.mean()/24:.2f} days)")
@@ -325,7 +339,11 @@ def print_summary_statistics(df):
     
     # Depth delay statistics (only positive delays)
     depth_delays = df[df['depth_delay_hours'].notna() & (df['depth_delay_hours'] > 0)]['depth_delay_hours']
+    depth_no_delay = len(df[(df['has_depth'] == True) & (df['depth_delay_hours'] == 0)])
+    
     print(f"\nDepth Data Delay Statistics:")
+    print(f"  - Instruments with Depth data: {df['has_depth'].sum()}")
+    print(f"  - Instruments with NO delay (starts at or before OHLCV): {depth_no_delay}")
     print(f"  - Instruments with delay > 0: {len(depth_delays)}")
     if len(depth_delays) > 0:
         print(f"  - Average delay: {depth_delays.mean():.2f} hours ({depth_delays.mean()/24:.2f} days)")
