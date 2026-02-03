@@ -170,7 +170,7 @@ def process_symbol(sym_dir: Path, output_root: Path, is_large_coin: bool = False
     Args:
         sym_dir: Path to symbol directory containing OHLCV.csv and optionally LUNAR.csv
         output_root: Output directory root
-        is_large_coin: Whether this is a large coin (for logging)
+        is_large_coin: Whether this is a large coin (BTC, ETH, etc. - only require Lunar, not Depth)
     
     Returns:
         True if processed successfully, False otherwise
@@ -185,18 +185,20 @@ def process_symbol(sym_dir: Path, output_root: Path, is_large_coin: bool = False
         return False
     
     # PRE-CHECK: If REQUIRE_BOTH_LUNAR_AND_DEPTH is True, check availability before processing
+    # EXCEPTION: Large coins (BTC, ETH, DOGE, SOL) only require Lunar, not Depth
     if REQUIRE_BOTH_LUNAR_AND_DEPTH:
-        # Check if Lunar exists
+        # Check if Lunar exists (required for all)
         if not lunar_path.exists():
             print(f"[SKIP] {symbol}: LUNAR.csv missing (required)")
             return False
         
-        # Check if Depth exists
-        base_symbol = get_base_symbol(symbol)
-        depth_path = DEPTH_DIR / base_symbol / "DEPTH.csv"
-        if not depth_path.exists():
-            print(f"[SKIP] {symbol}: DEPTH.csv missing for {base_symbol} (required)")
-            return False
+        # Check if Depth exists (only required for non-large coins)
+        if not is_large_coin:
+            base_symbol = get_base_symbol(symbol)
+            depth_path = DEPTH_DIR / base_symbol / "DEPTH.csv"
+            if not depth_path.exists():
+                print(f"[SKIP] {symbol}: DEPTH.csv missing for {base_symbol} (required)")
+                return False
     
     # Load OHLCV
     ohlcv = _read_csv_safe(ohlcv_path)

@@ -1,5 +1,5 @@
 """
-Run all pre-processing steps (0-5) automatically for Bitget data
+Run all pre-processing steps (0-6) automatically for Bitget data
 
 Executes:
 0. Pre-processing 0: Create multi-metric CSV from OHLCV + DEPTH + LUNAR
@@ -8,6 +8,7 @@ Executes:
 3. Pre-processing 3: Merge all symbols into one final dataset
 4. Pre-processing 4: Data quality check & fix (NaN, empty values -> 0)
 5. Pre-processing 5: Behavioral cluster encoding (market categories)
+6. Pre-processing 6: Multi-horizon target generation (15min, 1h, 4h, 12h)
 """
 
 import subprocess
@@ -26,7 +27,8 @@ SCRIPTS = [
     "2_pre_processing.py",
     "3_pre_processing.py",
     "4_pre_processing.py",
-    "5_pre_processing.py"
+    "5_pre_processing.py",
+    "6_pre_processing.py"
 ]
 
 # Paths
@@ -35,8 +37,8 @@ OUTPUT_DIR = BASE_DATA_DIR / "output"
 INTERMEDIATE_DIR = OUTPUT_DIR / "intermediate"
 FINAL_DIR = OUTPUT_DIR / "final"
 
-# Copy step 5 output to final directory
-INPUT_FILE = INTERMEDIATE_DIR / "step_5" / "all_matched_data_encoded.csv"
+# Copy step 6 output to final directory
+INPUT_FILE = INTERMEDIATE_DIR / "step_6" / "all_matched_data_with_targets.csv"
 FINAL_FILE = FINAL_DIR / "dataset.csv"
 
 def run_script(script_name: str) -> bool:

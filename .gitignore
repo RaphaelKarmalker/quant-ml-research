@@ -28,6 +28,7 @@ transformer/kronos/train/backtest_results
 
 transformer/kronos/train/archive
 transformer/kronos/data
+transformer/temporal/output
 
 
 # Pyenv

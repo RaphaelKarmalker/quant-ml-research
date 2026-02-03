@@ -22,7 +22,7 @@ BASE_DATA_DIR = Path(__file__).resolve().parent / "data_storage_bitget"
 OUTPUT_DIR = BASE_DATA_DIR / "output"
 INTERMEDIATE_DIR = OUTPUT_DIR / "intermediate"
 INPUT_FILE = INTERMEDIATE_DIR / "step_3" / "all_matched_data.csv"
-OUTPUT_FILE = INTERMEDIATE_DIR / "step_3" / "all_matched_data_clean.csv"
+OUTPUT_FILE = INTERMEDIATE_DIR / "step_4" / "all_matched_data_clean.csv"
 
 
 def analyze_column(series: pd.Series) -> dict:
@@ -201,6 +201,9 @@ def run():
     print("\n" + "=" * 100)
     print(" SAVING CLEANED DATA")
     print("=" * 100)
+    
+    # Create output directory
+    OUTPUT_FILE.parent.mkdir(parents=True, exist_ok=True)
     
     df_fixed.to_csv(OUTPUT_FILE, index=False)
     print(f"\n✓ Saved to: {OUTPUT_FILE}")
