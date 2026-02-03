@@ -91,8 +91,11 @@ def load_and_preprocess_data(config: Config) -> pd.DataFrame:
     """
     print(f"Loading data from: {config.dataset_path}")
     
-    # Load data with low_memory=False to handle mixed dtypes
-    df = pd.read_csv(config.dataset_path, low_memory=False)
+    # Load data - avoid dtype_backend which causes issues with np.isnan
+    df = pd.read_csv(
+        config.dataset_path,
+        low_memory=False
+    )
     print(f"  Loaded {len(df):,} rows, {len(df.columns)} columns")
     
     # Parse timestamp
